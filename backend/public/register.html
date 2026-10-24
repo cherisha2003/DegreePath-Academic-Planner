@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | DegreePath</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <h1>DegreePath</h1>
+        <h2>Create an Account</h2>
+        <p>Register to start planning your academic journey.</p>
+
+        <!-- Send registration details to the Node.js server -->
+        <form action="/register" method="POST">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username"
+                   maxlength="50" required>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email"
+                   maxlength="100" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password"
+                   minlength="8" required>
+
+            <button type="submit">Register</button>
+        </form>
+
+        <p>Already have an account?
+            <a href="login.html">Login here</a>
+        </p>
+    </main>
+</body>
+</html>
