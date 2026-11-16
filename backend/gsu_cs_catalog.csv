@@ -1,0 +1,110 @@
+course_code,course_title,credits,description,prerequisites,catalog_year,source,verification_status
+CSC 6110,Introduction to Embedded Systems Laboratory,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6120,Introduction to Robotics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6210,Computer Architecture,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6220,Computer Networks,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6221,Mobile Computing and Wireless Network Security,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6222,Fundamentals of Cybersecurity,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6223,Privacy,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6224,Ethical Hacking,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6225,Internetwork Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6226,Secure Software Engineering,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6227,Network Security,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6228,Security in Internet of Things,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6250,Malware Analysis and Defense,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6251,Computer Forensics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6260,Digital Image Processing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6270,Digital Signal Processing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6310,Parallel and Distributed Computing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6311,Cloud Computing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6320,Operating Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6330,Programming Language Concepts,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6340,Compilers,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6350,Software Engineering,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6360,Mobile Application Development,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6370,Web Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6380,Windowing Systems Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6510,Automata,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6520,Design and Analysis of Algorithms,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6610,Numerical Analysis I,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6620,Numerical Analysis II,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6630,Matlab,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6640,Fundamentals of Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6650,Introduction to Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6710,Database Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6720,Human-Computer Interaction,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6730,Data Visualization,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6740,Data Mining,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6741,Data Mining for Analytics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6750,Semantic Web,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6760,Big Data Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6780,Fundamentals of Data Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6810,Artificial Intelligence,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6820,Interactive Computer Graphics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6821,Fundamentals of Game Design,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6840,Advanced Computer Graphics Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6841,Computer Animation,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6850,Machine Learning,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6851,Introduction to Deep Learning,,,,,User-provided GSU CSC catalog list,title_only
+CSC 6980,Topics in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7003,Programming for Data Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7350,Programming for Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7351,Systems Programming for Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7352,Advanced Programming for Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7850,Machine Learning-TAIS,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7851,Deep Learning-TAIS,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7950,Secure Artificial Intelligence-TAIS,,,,,User-provided GSU CSC catalog list,title_only
+CSC 7951,Private Artificial Intelligence-TAIS,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8050,Statistics for Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8210,Advanced Computer Architecture,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8220,Advanced Computer Networks,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8221,Optical and Wireless Networks,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8222,Network Security,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8223,Internet of Things,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8224,Cryptography,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8228,Privacy Aware Computing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8230,Secure and Private Artificial Intelligence,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8250,Advanced Digital Signal Processing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8251,Sensor Web Architecture and Protocols,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8260,Advanced Image Processing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8270,Digital Signal Processing,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8320,Advanced Operating Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8321,Multimedia Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8350,Advanced Software Engineering,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8370,Data Security,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8520,Applied Combinatorics and Graph Theory,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8530,Parallel Algorithms,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8540,Advanced Algorithms in Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8550,Advanced Algorithms with Applications to Networks,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8560,Discrete Approximation Algorithms and Metaheuristics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8610,Advanced Numerical Analysis,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8620,Numerical Linear Algebra,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8630,Advanced Bioinformatics,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8710,Deductive Databases and Logic Programming,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8711,Databases and the Web,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8712,Advanced Database Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8713,Spatial and Scientific Databases,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8720,Advanced Human-Computer Interaction,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8740,Advanced Data Mining,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8741,Graph Mining,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8810,Computational Intelligence,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8820,Advanced Graphics Algorithms,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8830,Computer Vision: Theory and Systems,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8840,Modeling and Simulation Theory and Application,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8850,Advanced Machine Learning,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8851,Deep Learning,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8852,Advanced Topics of Deep Learning,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8900,Seminar in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8901,Perspectives in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8902,Ethics for Data Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8910,Computer Science Topics Seminar,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8920,Computer Science Teaching Pedagogy,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8930,MS Project,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8940,Computer Science Internship,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8950,Directed Research in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8980,Topics in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8981,Research in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8982,Lab in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 8999,Thesis Research,,,,,User-provided GSU CSC catalog list,title_only
+CSC 9900,Seminar in Computer Science,,,,,User-provided GSU CSC catalog list,title_only
+CSC 9999,Doctoral Dissertation Research,,,,,User-provided GSU CSC catalog list,title_only
