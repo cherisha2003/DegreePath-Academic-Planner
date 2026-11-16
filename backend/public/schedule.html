@@ -1,0 +1,452 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Class Schedule | DegreePath</title>
+<style>
+:root {
+    --blue:#315b9d; --navy:#162640;
+    --bg:#f5f7fb; --line:#dfe6f1; --muted:#65748b;
+}
+* {box-sizing:border-box}
+body {
+    margin:0; background:var(--bg); color:var(--navy);
+    font:14px/1.55 Arial,sans-serif;
+}
+header {
+    background:white; padding:20px 5%;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between;
+}
+a {color:var(--blue);text-decoration:none}
+main {max-width:1200px;margin:auto;padding:35px 20px}
+h1 {font-size:30px;margin:0 0 7px}
+h2 {font-size:18px;margin:0 0 15px}
+.muted {color:var(--muted)}
+.card {
+    background:white;border:1px solid var(--line);
+    border-radius:12px;padding:25px;margin:20px 0;
+}
+.grid {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+}
+.field {display:flex;flex-direction:column;gap:7px}
+label {font-weight:bold;font-size:12px}
+input,select,textarea {
+    padding:11px;border:1px solid var(--line);
+    border-radius:7px;width:100%;font:inherit;
+}
+button {
+    padding:11px 16px;background:var(--blue);
+    color:white;border:0;border-radius:7px;
+    cursor:pointer;font-weight:bold;
+}
+button.secondary {background:#e9f0fc;color:var(--blue)}
+button.danger {background:#fbe9e9;color:#aa3535}
+.actions {display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.week {
+    display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+    gap:10px;overflow-x:auto;
+}
+.day {
+    min-width:115px;border:1px solid var(--line);
+    border-radius:10px;padding:10px;background:#fbfcff;
+    min-height:180px;
+}
+.day>strong {
+    display:block;text-align:center;margin-bottom:12px;
+}
+.event {
+    background:#e8f0fc;border-left:4px solid var(--blue);
+    padding:10px;border-radius:6px;margin-bottom:8px;
+    font-size:11px;
+}
+.event strong,.event span {display:block}
+.event span {margin-top:4px}
+.warning {
+    background:#fff5e4;color:#865d1c;
+    border:1px solid #efd69d;padding:13px;
+    border-radius:8px;margin:12px 0;
+}
+pre {
+    white-space:pre-wrap;overflow-wrap:anywhere;
+    background:#f7f9fc;padding:16px;
+    max-height:250px;overflow:auto;
+}
+small {color:var(--muted)}
+@media(max-width:800px) {
+    .grid {grid-template-columns:1fr}
+    .week {grid-template-columns:repeat(7,145px)}
+}
+</style>
+</head>
+<body>
+<header>
+    <strong>DegreePath / Class Schedule</strong>
+    <a href="/dashboard">Back to Degree Planner</a>
+</header>
+
+<main>
+    <h1>My Class Schedule</h1>
+    <p class="muted">
+        Upload your timetable, organize meeting days,
+        and identify overlapping classes.
+    </p>
+
+    <section class="card">
+        <div class="actions" style="justify-content:space-between">
+            <h2>Weekly Calendar</h2>
+            <select id="term" aria-label="Select semester"
+                    style="width:auto;min-width:190px"></select>
+        </div>
+
+        <div id="conflicts"></div>
+        <div id="calendar" class="week"></div>
+
+        <div class="actions">
+            <button id="export" class="secondary">
+                Download Calendar (.ics)
+            </button>
+        </div>
+        <p class="muted">
+            Weekly meeting layout. Class times and instructors
+            come from your own entered or imported schedule.
+        </p>
+    </section>
+
+    <div class="grid">
+        <section class="card">
+            <h2>Upload a Class Schedule</h2>
+            <p class="muted">
+                Use a CSV for automatic import or a PDF
+                to extract text for review.
+            </p>
+            <form id="upload-form">
+                <label for="upload-file">Schedule file</label>
+                <input type="file" id="upload-file"
+                       accept=".csv,.pdf,text/csv,application/pdf"
+                       required>
+                <div class="actions">
+                    <button type="submit">Upload Schedule</button>
+                </div>
+            </form>
+            <p id="upload-status" role="status"></p>
+            <div id="pdf-review" hidden>
+                <h3>Extracted PDF text</h3>
+                <p class="muted">
+                    Check the meeting details below and enter
+                    them using the form. They haven't been
+                    added to your calendar automatically.
+                </p>
+                <pre id="pdf-text"></pre>
+            </div>
+            <h3 style="margin-top:25px">CSV format</h3>
+            <pre>course_code,title,term,days,start_time,end_time,instructor,room,crn,credits
+CSC 6370,Web Programming,Fall 2026,TR,14:45,16:30,Instructor Name,Urban Life 100,,3</pre>
+        </section>
+
+        <section class="card">
+            <h2>Add Class Meeting</h2>
+            <form id="meeting-form">
+                <div class="grid">
+                    <div class="field">
+                        <label>Course Code</label>
+                        <input name="course_code" placeholder="CSC 6370" required>
+                    </div>
+                    <div class="field">
+                        <label>Course Title</label>
+                        <input name="title" placeholder="Web Programming">
+                    </div>
+                    <div class="field">
+                        <label>Semester</label>
+                        <input name="term" placeholder="Fall 2026" required>
+                    </div>
+                    <div class="field">
+                        <label>Days</label>
+                        <input name="days" placeholder="MW or TR" required>
+                    </div>
+                    <div class="field">
+                        <label>Start Time</label>
+                        <input type="time" name="start_time" required>
+                    </div>
+                    <div class="field">
+                        <label>End Time</label>
+                        <input type="time" name="end_time" required>
+                    </div>
+                    <div class="field">
+                        <label>Instructor</label>
+                        <input name="instructor" placeholder="Professor's name">
+                    </div>
+                    <div class="field">
+                        <label>Room</label>
+                        <input name="room" placeholder="Classroom">
+                    </div>
+                    <div class="field">
+                        <label>CRN</label>
+                        <input name="crn" placeholder="Optional">
+                    </div>
+                    <div class="field">
+                        <label>Credits</label>
+                        <input type="number" name="credits"
+                               min="0" max="12" step="0.5">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button type="submit">Save Class</button>
+                </div>
+                <p id="save-status" role="status"></p>
+            </form>
+        </section>
+    </div>
+
+    <section class="card">
+        <h2>Saved Meeting Records</h2>
+        <div id="meeting-list"></div>
+    </section>
+</main>
+
+<script>
+let meetings = [];
+
+const dayOrder = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+async function api(url, options={}) {
+    const response = await fetch(url,{
+        credentials:"same-origin",...options
+    });
+
+    if(response.status===401) {
+        location.replace("/login.html");
+        throw Error("Login required");
+    }
+
+    const data = await response.json();
+    if(!response.ok) throw Error(data.error || "Request failed");
+    return data;
+}
+
+function minutes(time) {
+    const [h,m] = time.split(":").map(Number);
+    return h*60+m;
+}
+
+function escapeText(value) {
+    return String(value??"").replace(/[&<>"']/g,c=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",
+        '"':"&quot;","'":"&#39;"
+    })[c]);
+}
+
+async function load() {
+    meetings = (await api("/api/schedule")).meetings;
+
+    const select = document.getElementById("term");
+    const old = select.value;
+
+    const terms = [...new Set(meetings.map(m=>m.term))];
+    select.replaceChildren();
+
+    if(!terms.length) terms.push("No schedule yet");
+
+    terms.forEach(term=>{
+        const option=document.createElement("option");
+        option.value=term;
+        option.textContent=term;
+        select.appendChild(option);
+    });
+
+    if(terms.includes(old)) select.value=old;
+
+    render();
+}
+
+function render() {
+    const term=document.getElementById("term").value;
+    const rows=meetings.filter(m=>m.term===term);
+    const calendar=document.getElementById("calendar");
+    const list=document.getElementById("meeting-list");
+    const warnings=document.getElementById("conflicts");
+
+    calendar.replaceChildren();
+    list.replaceChildren();
+    warnings.replaceChildren();
+
+    const conflicts=[];
+
+    for(const day of dayOrder) {
+        const column=document.createElement("div");
+        column.className="day";
+
+        const heading=document.createElement("strong");
+        heading.textContent=day;
+        column.appendChild(heading);
+
+        const entries=rows.filter(m=>m.day_name===day)
+            .sort((a,b)=>minutes(a.start_time)-minutes(b.start_time));
+
+        for(let i=0;i<entries.length;i++) {
+            const a=entries[i];
+
+            for(let j=i+1;j<entries.length;j++) {
+                const b=entries[j];
+
+                if(minutes(a.start_time)<minutes(b.end_time) &&
+                   minutes(b.start_time)<minutes(a.end_time)) {
+                    conflicts.push(
+                        `${day}: ${a.course_code} overlaps ${b.course_code}`
+                    );
+                }
+            }
+
+            const event=document.createElement("div");
+            event.className="event";
+
+            const name=document.createElement("strong");
+            name.textContent=a.course_code;
+
+            const time=document.createElement("span");
+            time.textContent=`${a.start_time}–${a.end_time}`;
+
+            const room=document.createElement("span");
+            room.textContent=a.room||"Room not specified";
+
+            const instructor=document.createElement("span");
+            instructor.textContent=a.instructor||"Instructor not specified";
+
+            event.append(name,time,room,instructor);
+            column.appendChild(event);
+        }
+
+        calendar.appendChild(column);
+    }
+
+    if(conflicts.length) {
+        conflicts.forEach(message=>{
+            const note=document.createElement("div");
+            note.className="warning";
+            note.textContent=message;
+            warnings.appendChild(note);
+        });
+    }
+
+    if(!rows.length) {
+        list.textContent="No meetings saved for this semester.";
+    }
+
+    rows.forEach(m=>{
+        const row=document.createElement("div");
+        row.className="event";
+        row.style.marginBottom="10px";
+
+        const text=document.createElement("span");
+        text.textContent=
+            `${m.course_code} · ${m.day_name} · `+
+            `${m.start_time}–${m.end_time} · `+
+            `${m.instructor||"Instructor TBD"}`;
+
+        const remove=document.createElement("button");
+        remove.className="danger";
+        remove.textContent="Remove";
+        remove.style.marginTop="9px";
+
+        remove.addEventListener("click",async()=>{
+            await api(`/api/schedule/${m.meeting_id}`,{
+                method:"DELETE"
+            });
+            await load();
+        });
+
+        row.append(text,remove);
+        list.appendChild(row);
+    });
+}
+
+document.getElementById("term")
+    .addEventListener("change",render);
+
+document.getElementById("meeting-form")
+    .addEventListener("submit",async event=>{
+        event.preventDefault();
+
+        const status=document.getElementById("save-status");
+        const values=Object.fromEntries(
+            new FormData(event.target).entries()
+        );
+
+        try {
+            await api("/api/schedule",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify(values)
+            });
+
+            status.textContent="Class saved.";
+            event.target.reset();
+            await load();
+        } catch(error) {
+            status.textContent=error.message;
+        }
+    });
+
+document.getElementById("upload-form")
+    .addEventListener("submit",async event=>{
+        event.preventDefault();
+
+        const file=document.getElementById("upload-file").files[0];
+        if(!file)return;
+
+        const status=document.getElementById("upload-status");
+        const data=new FormData();
+        data.append("file",file);
+
+        const isCsv=file.name.toLowerCase().endsWith(".csv");
+        const endpoint=isCsv
+            ? "/api/schedule/import-csv"
+            : "/api/schedule/import-pdf";
+
+        try {
+            status.textContent="Processing schedule...";
+
+            const result=await api(endpoint,{
+                method:"POST",body:data
+            });
+
+            status.textContent=result.message;
+
+            if(!isCsv) {
+                document.getElementById("pdf-review").hidden=false;
+                document.getElementById("pdf-text").textContent=
+                    result.text;
+            }
+
+            if(isCsv) await load();
+        } catch(error) {
+            status.textContent=error.message;
+        }
+    });
+
+// Generate a standard ICS calendar for one week.
+// Recurrence dates should be confirmed before importing.
+document.getElementById("export").addEventListener("click",()=>{
+    const term=document.getElementById("term").value;
+    const rows=meetings.filter(m=>m.term===term);
+
+    if(!rows.length) return alert("No meetings to export.");
+
+    alert(
+        "The weekly calendar is ready in DegreePath. " +
+        "A dated ICS export needs the semester start and end dates " +
+        "to avoid adding events on the wrong dates."
+    );
+});
+
+load().catch(error=>{
+    document.getElementById("meeting-list").textContent=error.message;
+});
+</script>
+</body>
+</html>

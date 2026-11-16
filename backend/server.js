@@ -5,7 +5,10 @@ const crypto = require("crypto");
 const session = require("express-session");
 const path = require("path");
 
-// Import the PDF handbook processing functionality
+// Import DegreePath modules
+const { createPlannerRouter } = require("./planner");
+const { createScheduleModule } = require("./schedule");
+
 const {
     createHandbookRouter,
     initializeHandbookTables
@@ -67,6 +70,12 @@ const db = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
+
+// Initialize the academic planning module using the same database
+const planner = createPlannerRouter(db);
+
+// Reuse the same MySQL pool for the weekly class schedule
+const schedule = createScheduleModule(db);
 
 // --------------------------------------------------
 // HELPER FUNCTIONS
@@ -137,7 +146,6 @@ function responsePage(message, content = `
 
 // Protect HTML pages from users who are not logged in
 function requireLogin(req, res, next) {
-
     if (!req.session.user) {
         return res.redirect("/login.html");
     }
@@ -147,7 +155,6 @@ function requireLogin(req, res, next) {
 
 // Protect API endpoints from unauthorized access
 function requireApiLogin(req, res, next) {
-
     if (!req.session.user) {
         return res.status(401).json({
             error: "You must be logged in to continue."
@@ -170,7 +177,6 @@ function asyncRoute(handler) {
 
 // Redirect visitors based on whether they are logged in
 app.get("/", function(req, res) {
-
     if (req.session.user) {
         return res.redirect("/dashboard");
     }
@@ -184,7 +190,6 @@ app.get("/", function(req, res) {
 
 // Add a new user to the existing MySQL users table
 app.post("/register", asyncRoute(async function(req, res) {
-
     const username = String(req.body.username || "").trim();
     const email = String(req.body.email || "").trim();
     const password = req.body.password || "";
@@ -223,7 +228,6 @@ app.post("/register", asyncRoute(async function(req, res) {
     `;
 
     try {
-
         await db.execute(sql, [
             username,
             email,
@@ -244,7 +248,6 @@ app.post("/register", asyncRoute(async function(req, res) {
         );
 
     } catch (err) {
-
         if (err.code === "ER_DUP_ENTRY") {
             return res.status(409).send(
                 responsePage("Username or email already exists.")
@@ -261,7 +264,6 @@ app.post("/register", asyncRoute(async function(req, res) {
 
 // Check the entered credentials against the MySQL database
 app.post("/login", asyncRoute(async function(req, res) {
-
     const username = String(req.body.username || "").trim();
     const password = req.body.password || "";
 
@@ -325,7 +327,6 @@ app.post("/login", asyncRoute(async function(req, res) {
 
     // Generate a fresh session after successful authentication
     req.session.regenerate(function(sessionErr) {
-
         if (sessionErr) {
             console.error("Session creation error:", sessionErr);
 
@@ -343,7 +344,6 @@ app.post("/login", asyncRoute(async function(req, res) {
 
         // Save the session before redirecting
         req.session.save(function(saveErr) {
-
             if (saveErr) {
                 console.error("Session save error:", saveErr);
 
@@ -353,7 +353,7 @@ app.post("/login", asyncRoute(async function(req, res) {
             }
 
             // Redirect the user to their academic dashboard
-            res.redirect("/profile");
+            res.redirect("/dashboard");
         });
     });
 }));
@@ -364,7 +364,6 @@ app.post("/login", asyncRoute(async function(req, res) {
 
 // Display the academic dashboard after successful login
 app.get("/dashboard", requireLogin, function(req, res) {
-
     res.sendFile(
         path.join(__dirname, "public", "dashboard.html")
     );
@@ -377,9 +376,19 @@ app.get("/dashboard", requireLogin, function(req, res) {
 // Display the handbook upload and extraction page
 // Only authenticated users can access this page
 app.get("/handbook", requireLogin, function(req, res) {
-
     res.sendFile(
         path.join(__dirname, "public", "handbook.html")
+    );
+});
+
+// --------------------------------------------------
+// WEEKLY CLASS SCHEDULE
+// --------------------------------------------------
+
+// Class timetable page: only accessible after login
+app.get("/schedule", requireLogin, function(req, res) {
+    res.sendFile(
+        path.join(__dirname, "public", "schedule.html")
     );
 });
 
@@ -389,7 +398,6 @@ app.get("/handbook", requireLogin, function(req, res) {
 
 // Display information stored in the user's session
 app.get("/profile", requireLogin, function(req, res) {
-
     const username = escapeHtml(req.session.user.username);
 
     res.send(responsePage(
@@ -415,6 +423,10 @@ app.get("/profile", requireLogin, function(req, res) {
         </p>
 
         <p>
+            <a href="/schedule">View Class Schedule</a>
+        </p>
+
+        <p>
             <a href="/logout">Logout</a>
         </p>
         `
@@ -427,9 +439,7 @@ app.get("/profile", requireLogin, function(req, res) {
 
 // Destroy the session when the user clicks Logout
 app.get("/logout", function(req, res) {
-
     req.session.destroy(function(err) {
-
         if (err) {
             console.error("Logout error:", err);
 
@@ -462,12 +472,33 @@ app.get("/logout", function(req, res) {
 // --------------------------------------------------
 
 // All handbook API requests require an active login session
-// The router handles uploading, processing, reading, and
-// deleting PDF handbooks belonging to the current user
+// Handles uploading, processing, reading, and deleting PDFs
 app.use(
     "/api/handbooks",
     requireApiLogin,
     createHandbookRouter(db)
+);
+
+// --------------------------------------------------
+// DEGREE PLANNER API
+// --------------------------------------------------
+
+// Protect academic planning data using the login session
+app.use(
+    "/api/planner",
+    requireApiLogin,
+    planner.router
+);
+
+// --------------------------------------------------
+// CLASS SCHEDULE API
+// --------------------------------------------------
+
+// Save, import, view, and delete class meetings
+app.use(
+    "/api/schedule",
+    requireApiLogin,
+    schedule.router
 );
 
 // --------------------------------------------------
@@ -476,7 +507,6 @@ app.use(
 
 // Return the logged-in user's username for the frontend
 app.get("/api/user", requireApiLogin, function(req, res) {
-
     res.json({
         user_id: req.session.user.user_id,
         username: req.session.user.username
@@ -489,7 +519,6 @@ app.get("/api/user", requireApiLogin, function(req, res) {
 
 // Handle errors without revealing private database information
 app.use(function(err, req, res, next) {
-
     console.error("Server error:", err);
 
     if (req.path.startsWith("/api/")) {
@@ -507,11 +536,9 @@ app.use(function(err, req, res, next) {
 // DATABASE INITIALIZATION
 // --------------------------------------------------
 
-// Connect to MySQL and create the handbook storage tables
+// Connect to MySQL and create the necessary tables
 async function initializeDatabase() {
-
     try {
-
         // Verify the MySQL connection
         await db.query("SELECT 1");
 
@@ -521,11 +548,18 @@ async function initializeDatabase() {
         // This does not delete the existing users table
         await initializeHandbookTables(db);
 
-        console.log("Handbook database tables are ready!");
+        // Create tables for onboarding choices and semester plans
+        await planner.initializePlannerTables();
+
+        // Create tables for class meetings and schedule uploads
+        await schedule.initializeTables();
+
+        console.log(
+            "Handbook, planner, and schedule tables are ready!"
+        );
 
         // Start the Express server after database setup
         app.listen(PORT, "0.0.0.0", function() {
-
             console.log(
                 `DegreePath server running on port ${PORT}`
             );
@@ -537,11 +571,17 @@ async function initializeDatabase() {
             console.log(
                 `Handbook: http://localhost:${PORT}/handbook`
             );
+
+            console.log(
+                `Class schedule: http://localhost:${PORT}/schedule`
+            );
         });
 
     } catch (err) {
-
-        console.error("Database initialization error:", err.message);
+        console.error(
+            "Database initialization error:",
+            err.message
+        );
 
         process.exit(1);
     }
@@ -549,3 +589,4 @@ async function initializeDatabase() {
 
 // Start DegreePath
 initializeDatabase();
+
