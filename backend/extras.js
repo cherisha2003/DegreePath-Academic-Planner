@@ -4,8 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
+const {readSchedulePdf} = require('./pdf-schedule-reader');
+// Alternate PDF.js bundled with pdf-parse 1.1.1. Some valid iOS/Chrome
+// PDF exports are rejected by the package's much older default PDF engine.
+// No new npm dependencies are required.
+async function extractSchedulePdf(buffer) { return readSchedulePdf(buffer); }
 const { parse } = require('csv-parse/sync');
-const {parseClassSchedule} = require('./schedule-parser');
+const {parseClassSchedule,parseBannerSchedule} = require('./schedule-parser');
 const { recognizeHandbook, analyzeHandbook, FOUNDATION_CODES } = require('./handbook-rules');
 
 function setupExtras(app, db, auth, fail) {
@@ -245,7 +250,7 @@ function setupExtras(app, db, auth, fail) {
 
   const names={M:'Mon',T:'Tue',W:'Wed',R:'Thu',F:'Fri',MON:'Mon',TUE:'Tue',WED:'Wed',THU:'Thu',FRI:'Fri',SAT:'Sat',SUN:'Sun',MONDAY:'Mon',TUESDAY:'Tue',WEDNESDAY:'Wed',THURSDAY:'Thu',FRIDAY:'Fri',SATURDAY:'Sat',SUNDAY:'Sun'};
   function meeting(data){
-    const code=str(data.course_code,30).toUpperCase(),title=str(data.title,160),term=str(data.term,50);
+    const code=str(data.course_code,30).toUpperCase().replace(/^([A-Z]+)\s*[- ]?\s*(\d{4}[A-Z]?)$/, '$1 $2'),title=str(data.title,160),term=str(data.term,50).replace(/^(Spring|Summer|Fall|Winter)\s*(\d{4})$/i, (_,season,year)=>season[0].toUpperCase()+season.slice(1).toLowerCase()+' '+year);
     const value=str(data.days,70).toUpperCase();
     const dayCodes=/^[MTWRF]+$/.test(value)?[...value]:value.split(/[\s,;/&-]+/);
     const days=[...new Set(dayCodes.map(d=>names[d]).filter(Boolean))];
@@ -257,10 +262,48 @@ function setupExtras(app, db, auth, fail) {
        (credits!==null&&(!Number.isFinite(credits)||credits<0||credits>12)))throw Error('Check course, term, days and 24-hour start/end times.');
     return {code,title,term,days,start,end,instructor:str(data.instructor,120),room:str(data.room,120),crn:str(data.crn,30),credits};
   }
+  // A single calendar entry automatically appears as a course in Semester Planner.
+  // Matching code + semester avoids creating a second course for Mon/Wed meetings.
+  // Do not invent credits. If absent, use an existing saved course's credits or
+  // require the student to provide the value before importing a new course.
+  async function syncPlannedCourse(conn,user,m){
+    const [same]=await conn.execute(`SELECT id,credits,status FROM courses
+      WHERE user_id=? AND UPPER(REPLACE(REPLACE(code,' ',''),'-',''))=?
+      AND UPPER(REPLACE(semester,' ',''))=? ORDER BY id LIMIT 1`,
+      [user,m.code.replace(/[\s-]/g,''),m.term.replace(/\s/g,'').toUpperCase()]);
+    if(same.length)return 'existing'; // Preserve grades, progress, credits and user edits.
+    let credits=m.credits;
+    if(!(Number.isFinite(credits)&&credits>0&&credits<=12)){
+      throw Error('Enter the verified course credits for '+m.code+' ('+m.term+') before saving. Credits cannot be guessed.');
+    }
+    const [known]=await conn.execute('SELECT course_title FROM gsu_catalog_courses WHERE course_code=? LIMIT 1',[m.code]);
+    const title=(m.title||known[0]?.course_title||m.code).slice(0,140);
+    await conn.execute(`INSERT INTO courses (user_id,code,title,credits,semester,status,grade,category)
+      VALUES (?,?,?,?,?,'in_progress','','Imported from Class Calendar')`,
+      [user,m.code,title,credits,m.term]);
+    return 'created';
+  }
+  async function checkMeetingCredits(user,items){
+    for(const m of items){
+      if(Number.isFinite(m.credits)&&m.credits>0&&m.credits<=12)continue;
+      const [rows]=await db.execute(`SELECT id FROM courses WHERE user_id=?
+        AND UPPER(REPLACE(REPLACE(code,' ',''),'-',''))=?
+        AND UPPER(REPLACE(semester,' ',''))=? LIMIT 1`,
+        [user,m.code.replace(/[\s-]/g,''),m.term.replace(/\s/g,'').toUpperCase()]);
+      if(!rows.length) return 'Please enter credits for '+m.code+' in '+m.term+'. We cannot automatically verify the credits.';
+    }
+    return null;
+  }
   async function addMeeting(conn,user,m){
-    for(const day of m.days){await conn.execute(`INSERT INTO class_meetings
+    const sync=await syncPlannedCourse(conn,user,m);
+    for(const day of m.days){
+      const [exists]=await conn.execute(`SELECT ${meetingPrimaryKey} AS id FROM class_meetings WHERE user_id=? AND course_code=? AND term=? AND day_name=? AND start_time=? AND end_time=? LIMIT 1`, [user,m.code,m.term,day,m.start,m.end]);
+      if(exists.length)continue;
+      await conn.execute(`INSERT INTO class_meetings
       (user_id,course_code,title,term,day_name,start_time,end_time,instructor,room,crn,credits)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,[user,m.code,m.title,m.term,day,m.start,m.end,m.instructor,m.room,m.crn,m.credits]);}
+
+    return sync;
   }
   app.get('/api/schedule',auth,safe(async(req,res)=>{
     const [rows]=await db.execute(`SELECT ${meetingPrimaryKey} AS id,course_code,title,term,day_name,
@@ -270,8 +313,9 @@ function setupExtras(app, db, auth, fail) {
   }));
   app.post('/api/schedule',auth,safe(async(req,res)=>{
     let m;try{m=meeting(req.body);}catch(e){return fail(res,400,e.message);}
+    const issue=await checkMeetingCredits(id(req),[m]);if(issue)return fail(res,400,issue);
     const conn=await db.getConnection();try{await conn.beginTransaction();await addMeeting(conn,id(req),m);await conn.commit();}
-    catch(e){await conn.rollback();throw e;}finally{conn.release();}res.status(201).json({message:'Class meeting saved.'});
+    catch(e){await conn.rollback();throw e;}finally{conn.release();}res.status(201).json({message:'Class saved to Calendar and Semester Planner.'});
   }));
   app.delete('/api/schedule/:id',auth,safe(async(req,res)=>{
     if(!/^\d+$/.test(req.params.id))return fail(res,400,'Invalid meeting ID.');
@@ -283,14 +327,49 @@ function setupExtras(app, db, auth, fail) {
     let rows,items;try{rows=parse(req.file.buffer.toString('utf8'),{columns:true,bom:true,skip_empty_lines:true,trim:true});
       if(!rows.length||rows.length>100)return fail(res,400,'CSV must have 1–100 rows.');
       items=rows.map(meeting);}catch(e){return fail(res,400,'Invalid CSV: '+e.message);}
+    const issue=await checkMeetingCredits(id(req),items);if(issue)return fail(res,400,issue);
     const conn=await db.getConnection();try{await conn.beginTransaction();for(const m of items)await addMeeting(conn,id(req),m);await conn.commit();}
     catch(e){await conn.rollback();throw e;}finally{conn.release();}
-    res.status(201).json({message:`Imported ${items.length} schedule rows.`});
+    res.status(201).json({message:`Imported ${items.length} schedule row(s) and synchronized Semester Planner.`});
   }));
+  // Format-independent upload. Vector text PDFs are read directly; scanned PDFs
+  // use OCR. Save only confidently parsed courses. Uncertain rows receive a
+  // preview for review rather than inventing academic records.
+  app.post('/api/schedule/auto-import', auth, fileUpload.single('file'), safe(async (req, res) => {
+    if (!req.file || req.file.buffer.subarray(0,5).toString() !== '%PDF-')
+      return fail(res,400,'Please upload a PDF schedule.');
+    let extracted;
+    try { extracted = await extractSchedulePdf(req.file.buffer); }
+    catch (error) { console.error('PDF schedule extraction:', error);
+      return fail(res,422,`Could not read this PDF: ${error.message}`); }
+    const term=str(req.body.term,50)||'Unspecified term';
+    const banner=parseBannerSchedule(extracted,term);
+    const raw=banner?.candidates?.length ? banner.candidates : parseClassSchedule(extracted,term);
+    if (!raw.length) return res.status(422).json({error:'Could not identify scheduled classes. This PDF may use an unrecognized layout.',text:extracted.slice(0,12000)});
+    const codes=[...new Set(raw.map(x=>x.course_code))];
+    const [catalog] = await db.query(`SELECT course_code,course_title FROM gsu_catalog_courses WHERE course_code IN (${codes.map(()=>'?').join(',')})`,codes);
+    const titles=new Map(catalog.map(x=>[x.course_code,x.course_title]));
+    const candidates=raw.map(x=>({...x,title:titles.get(x.course_code)||x.title}));
+    // Never silently guess an unfamiliar schedule's credits or meeting times.
+    const incomplete=candidates.some(x=>!(Number(x.credits)>0)||!x.days||!x.start_time||!x.end_time);
+    if (incomplete || (banner && !banner.complete))
+      return res.json({needs_review:true,candidates,text:extracted.slice(0,18000),
+        message:'Schedule extracted. Some details need verification before saving.'});
+    let items;
+    try { items=candidates.map(meeting); }
+    catch (error) { return res.json({needs_review:true,candidates,text:extracted.slice(0,18000),message:error.message}); }
+    const issue=await checkMeetingCredits(id(req),items);
+    if(issue) return res.json({needs_review:true,candidates,text:extracted.slice(0,18000),message:issue});
+    const conn=await db.getConnection();
+    try { await conn.beginTransaction();for(const m of items)await addMeeting(conn,id(req),m);await conn.commit(); }
+    catch(error){await conn.rollback();throw error;}finally{conn.release();}
+    res.status(201).json({message:`Imported ${items.length} classes into Calendar and Semester Planner without duplicates.`,count:items.length});
+  }));
+
   app.post('/api/schedule/import-pdf',auth,fileUpload.single('file'),safe(async(req,res)=>{
     if(!req.file||req.file.buffer.subarray(0,5).toString()!=='%PDF-')return fail(res,400,'Choose a PDF schedule.');
-    let parsed;try{parsed=await pdfParse(req.file.buffer);}catch{return fail(res,422,'Could not read this PDF.');}
-    const text=str(parsed.text,2000000);if(!text)return fail(res,422,'PDF has no readable text.');
+    let pdfText;try{pdfText=await extractSchedulePdf(req.file.buffer);}catch(e){return fail(res,422,e.message);}
+    const text=str(pdfText,2000000);if(!text)return fail(res,422,'PDF has no readable text.');
     await db.execute('INSERT INTO uploaded_schedules (user_id,filename,extracted_text) VALUES (?,?,?)',[id(req),str(req.file.originalname,255),text]);
     res.status(201).json({message:'Schedule text extracted. Review and enter class meetings below.',text:text.slice(0,10000)});
   }));
@@ -301,8 +380,8 @@ function setupExtras(app, db, auth, fail) {
     const ext=String(req.file.originalname).toLowerCase();
     let extracted='';
     if(ext.endsWith('.pdf') && req.file.buffer.subarray(0,5).toString()==='%PDF-'){
-      try{const pdf=await pdfParse(req.file.buffer);extracted=String(pdf.text||'');}
-      catch{return fail(res,422,'Could not extract the schedule PDF.');}
+      try{extracted=await extractSchedulePdf(req.file.buffer);}
+      catch(e){console.error('Schedule PDF import:',e);return fail(res,422,e.message||'Could not extract the schedule PDF.');}
     }else if(/\.(png|jpe?g|webp)$/.test(ext)&&/^image\/(png|jpeg|webp)$/.test(req.file.mimetype)){
       // OCR uses Tesseract.js. Its language data might download on first use.
       let worker;
@@ -316,29 +395,30 @@ function setupExtras(app, db, auth, fail) {
     }else return fail(res,400,'Use PNG, JPG, WEBP, or PDF for recognition, or CSV for direct import.');
     if(!extracted.trim())return fail(res,422,'No text could be read from the schedule.');
     const term=str(req.body.term,50)||'Unspecified term';
-    const candidates=parseClassSchedule(extracted,term);
-    // The registrar exports titles, section numbers and dates in different columns.
-    // Use the imported catalog name instead of treating CRN/date text as a course title.
-    if (candidates.length) {
+    const banner=parseBannerSchedule(extracted,term);
+    const candidates=banner?banner.candidates:parseClassSchedule(extracted,term);
+    // Use the registered catalog title instead of CRN/date header artifacts.
+    if(candidates.length){
       const codes=[...new Set(candidates.map(c=>c.course_code))];
-      const placeholders=codes.map(()=>'?').join(',');
-      const [known]=await db.query(`SELECT course_code,course_title FROM gsu_catalog_courses WHERE course_code IN (${placeholders})`,codes);
-      const knownTitles=new Map(known.map(c=>[c.course_code,c.course_title]));
-      for (const c of candidates) {
-        if (knownTitles.has(c.course_code)) c.title=knownTitles.get(c.course_code);
-      }
+      const [known]=await db.query(`SELECT course_code,course_title FROM gsu_catalog_courses WHERE course_code IN (${codes.map(()=>'?').join(',')})`,codes);
+      const titles=new Map(known.map(c=>[c.course_code,c.course_title]));
+      for(const c of candidates)if(titles.has(c.course_code))c.title=titles.get(c.course_code);
     }
-    res.json({message:candidates.length?`Found ${candidates.length} possible class meeting(s). Review before saving.`:'No complete meeting records found; review the extracted text.',candidates,text:extracted.slice(0,18000)});
+    // Automatic import is only enabled for a complete structured Banner parse.
+    // All other screenshots/PDFs require review rather than guessing fields.
+    const automatic=!!(banner&&banner.complete&&candidates.length&&candidates.every(c=>c.credits>0));
+    res.json({message:candidates.length?`Found ${candidates.length} possible class meeting(s). Review before saving.`:'No complete meeting records found; review the extracted text.',candidates,automatic,expected:banner?.expected||null,text:extracted.slice(0,18000)});
   }));
   app.post('/api/schedule/import-reviewed',auth,safe(async(req,res)=>{
     const rows=req.body.meetings;
     if(!Array.isArray(rows)||!rows.length||rows.length>80)return fail(res,400,'Provide 1–80 reviewed class meetings.');
     let items;
     try{items=rows.map(meeting);}catch(e){return fail(res,400,e.message);}
+    const issue=await checkMeetingCredits(id(req),items);if(issue)return fail(res,400,issue);
     const conn=await db.getConnection();
     try{await conn.beginTransaction();for(const m of items)await addMeeting(conn,id(req),m);await conn.commit();}
     catch(e){await conn.rollback();throw e;}finally{conn.release();}
-    res.status(201).json({message:`Added ${items.length} class meeting(s) to the calendar.`});
+    res.status(201).json({message:`Added ${items.length} class meeting(s) to Calendar and synchronized Semester Planner.`});
   }));
 
   // Credit and level checks are advisory; courses mentioned as foundations may not count.

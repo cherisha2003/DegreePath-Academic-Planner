@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check extras.js && node --check public/app.js && node --check public/extras-client.js && node --check schedule-parser.js && node --check public/extras-client.js"
+    "check": "node --check server.js && node --check extras.js && node --check public/app.js && node --check public/extras-client.js && node --check schedule-parser.js && node --check public/extras-client.js && node --check pdf-schedule-reader.js"
   },
   "dependencies": {
     "express": "^5.3.0",
@@ -15,6 +15,8 @@
     "multer": "^2.0.2",
     "pdf-parse": "1.1.1",
     "csv-parse": "^5.6.0",
-    "tesseract.js": "^5.1.1"
+    "tesseract.js": "^5.1.1",
+    "pdfjs-dist": "^4.10.38",
+    "@napi-rs/canvas": "^0.1.80"
   }
 }

@@ -68,10 +68,19 @@ function renderCourses(){
  setHTML('#courseRows',data.length?courseRows(data):'<tr><td colspan="6" class="empty">No matching courses. Add one using the button above.</td></tr>');
  document.querySelectorAll('.chip').forEach(ch=>ch.classList.toggle('active',ch.dataset.filter===filter));
 }
-function renderPlanner(){
+async function renderPlanner(){
  const grouped = {}; courses.forEach(c=>(grouped[c.semester]??=[]).push(c));
- const terms=Object.keys(grouped).sort((a,b)=>{const key=t=>{const m=t.match(/(Spring|Summer|Fall|Winter)\s+(\d{4})/i);return m?Number(m[2])*4+({winter:0,spring:1,summer:2,fall:3}[m[1].toLowerCase()]):99999;};return key(a)-key(b)||a.localeCompare(b)});
- setHTML('#semesterGrid',terms.length?terms.map(term=>`<section class="semester-card"><div class="semester-header"><h3>${esc(term)}</h3><span class="pill">${fmt(grouped[term].reduce((s,c)=>s+Number(c.credits),0))} credits</span></div>${grouped[term].map(c=>`<div class="semester-course"><div><strong>${esc(c.code)}</strong><small>${esc(c.title)} · ${fmt(c.credits)} credits</small></div>${badge(c.status)}</div>`).join('')}</section>`).join(''):'<div class="panel empty">No semesters yet. Add a course and assign it to a semester.</div>');
+ const terms=Object.keys(grouped).sort((a,b)=>{const key=t=>{const m=t.match(/(Spring|Summer|Fall|Winter)\s*(\d{4})/i);return m?Number(m[2])*4+({winter:0,spring:1,summer:2,fall:3}[m[1].toLowerCase()]):99999;};return key(a)-key(b)||a.localeCompare(b)});
+ let meetings=[];
+ try { meetings=(await api('/api/schedule')).meetings||[]; } catch(err) { console.warn('Calendar details unavailable:',err); }
+ const normalize=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+ const details=c=>{
+  const rows=meetings.filter(m=>normalize(m.course_code)===normalize(c.code)&&normalize(m.term)===normalize(c.semester));
+  if(!rows.length)return '<small class="muted">No class times saved · <a href="/schedule.html">Add schedule</a></small>';
+  const unique=[...new Set(rows.map(m=>`${m.day_name} ${m.start_time}–${m.end_time}`))];
+  return `<small class="muted">${unique.map(esc).join(' · ')}${rows[0].room?' · '+esc(rows[0].room):''}</small>`;
+ };
+ setHTML('#semesterGrid',terms.length?terms.map(term=>`<section class="semester-card"><div class="semester-header"><h3>${esc(term)}</h3><span class="pill">${fmt(grouped[term].reduce((s,c)=>s+Number(c.credits),0))} credits</span></div>${grouped[term].map(c=>`<div class="semester-course"><div><strong>${esc(c.code)}</strong><small>${esc(c.title)} · ${fmt(c.credits)} credits</small>${details(c)}</div>${badge(c.status)}</div>`).join('')}</section>`).join(''):'<div class="panel empty">No semesters yet. <a href="/schedule.html">Add your class schedule</a> or add a course.</div>');
 }
 async function renderRequirements(){
  const target=$('#requirementRows');if(!target)return;

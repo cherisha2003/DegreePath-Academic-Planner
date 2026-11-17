@@ -120,7 +120,7 @@ async function schedule(){
  }
  term.addEventListener('change',draw);
  manual.addEventListener('submit',async e=>{e.preventDefault();
-  try{await api('/api/schedule',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(manual)))});manual.reset();await load();message('Class saved.');}
+  try{await api('/api/schedule',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(manual)))});manual.reset();await load();message('Class saved to Calendar and Semester Planner.');}
   catch(err){message(err.message,true);}
  });
  function review(rows,source){
@@ -129,7 +129,7 @@ async function schedule(){
   rows.forEach((m,i)=>{
    const part=tr('','div');part.className='review-row';part.append(tr('Class '+(i+1),'strong'));
    const g=tr('','div');g.className='form-grid';
-   for(const [key,label] of [['course_code','Course code'],['title','Title'],['term','Semester'],['days','Days'],['start_time','Start HH:MM'],['end_time','End HH:MM'],['instructor','Instructor'],['room','Room']]){
+   for(const [key,label] of [['course_code','Course code'],['title','Title'],['term','Semester'],['credits','Credits (verified, required for new courses)'],['days','Days'],['start_time','Start HH:MM'],['end_time','End HH:MM'],['instructor','Instructor'],['room','Room']]){
     const f=tr('','div');f.className='field';const input=document.createElement('input');
     input.value=m[key]||'';input.dataset.row=i;input.dataset.field=key;
     f.append(tr(label,'label'),input);g.append(f);
@@ -141,10 +141,39 @@ async function schedule(){
  upload.addEventListener('submit',async e=>{e.preventDefault();const file=$('#scheduleFile').files[0];if(!file)return;
   const f=new FormData();f.append('file',file);f.append('term',$('#importTerm').value.trim());
   const csv=file.name.toLowerCase().endsWith('.csv');
-  $('#importStatus').textContent='Reading schedule...';
-  try{const d=await api(csv?'/api/schedule/import-csv':'/api/schedule/preview',{method:'POST',body:f});
+  const pdf=file.name.toLowerCase().endsWith('.pdf');
+  $('#importStatus').textContent='Reading and saving your schedule...';
+  try{
+   if(pdf){
+    // The server parses and saves both the calendar and planner in one transaction.
+    const saved=await api('/api/schedule/auto-import',{method:'POST',body:f});
+    if(saved.needs_review){
+      review(saved.candidates||[],saved.text||'');
+      $('#importStatus').textContent=saved.message;
+      return;
+    }
+    $('#scheduleReview').hidden=true;
+    await load();
+    $('#importStatus').textContent=saved.message;
+    message(saved.message);
+    return;
+   }
+   const d=await api(csv?'/api/schedule/import-csv':'/api/schedule/preview',{method:'POST',body:f});
    $('#importStatus').textContent=d.message||'Review your detected classes.';
-   if(csv)await load();else review(d.candidates||[],d.text);
+   if(csv){await load();}
+   else if(d.automatic){
+    // Structured registrar export: save immediately into both tables.
+    const saved=await api('/api/schedule/import-reviewed',{method:'POST',body:JSON.stringify({meetings:d.candidates})});
+    $('#scheduleReview').hidden=true;
+    await load();
+    $('#importStatus').textContent=saved.message+' Open Semester Planner to see your classes.';
+    message('Schedule imported automatically into Calendar and Semester Planner.');
+   }else{
+    review(d.candidates||[],d.text);
+    $('#importStatus').textContent=d.candidates?.length
+      ? 'Some schedule details could not be verified automatically. Please check the detected records before saving.'
+      : 'Could not identify complete classes in this file. Please try a clearer PDF or screenshot.';
+   }
   }catch(err){$('#importStatus').textContent=err.message;message(err.message,true);}
  });
  $('#confirmImport').addEventListener('click',async()=>{
